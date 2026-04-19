@@ -1,0 +1,41 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Run Unit Tests
+      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=unit-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Unit"
+    
+    - name: Upload Unit Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results
+        path: '**/unit-test-results.trx'
+    
+    - name: Unit Tests Code Coverage
+      uses: codecov/codecov-action@v4
+      with:
+        flags: unit
+        name: unit-tests-coverage

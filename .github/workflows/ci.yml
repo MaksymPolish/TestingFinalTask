@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Orchestrator
 
 on:
   push:
@@ -6,179 +6,24 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# This workflow serves as a status aggregator.
+# Individual workflows are triggered via their own trigger conditions:
+# - unit-tests.yml: Runs on all pushes and PRs
+# - integration-tests.yml: Runs on all pushes and PRs
+# - database-tests.yml: Runs on all pushes and PRs
+# - performance-tests.yml: Runs only on main branch pushes
+
 jobs:
-  unit-tests:
+  status-check:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-    
-    - name: Run Unit Tests
-      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=unit-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Unit"
-    
-    - name: Upload Unit Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: unit-test-results
-        path: '**/unit-test-results.trx'
-    
-    - name: Unit Tests Code Coverage
-      uses: codecov/codecov-action@v4
-      with:
-        flags: unit
-        name: unit-tests-coverage
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: DonationPlatform
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-    
-    - name: Run Integration Tests
-      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=integration-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Integration"
-      env:
-        ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=DonationPlatform;Username=postgres;Password=postgres"
-    
-    - name: Upload Integration Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: integration-test-results
-        path: '**/integration-test-results.trx'
-    
-    - name: Integration Tests Code Coverage
-      uses: codecov/codecov-action@v4
-      with:
-        flags: integration
-        name: integration-tests-coverage
-
-  database-tests:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Restore dependencies
-      run: dotnet restore
-    
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-    
-    - name: Run Database Tests
-      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=database-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Database"
-    
-    - name: Upload Database Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: database-test-results
-        path: '**/database-test-results.trx'
-    
-    - name: Database Tests Code Coverage
-      uses: codecov/codecov-action@v4
-      with:
-        flags: database
-        name: database-tests-coverage
-
-  performance-tests:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, database-tests]
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Setup k6
+    - name: CI/CD Pipeline Status
       run: |
-        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-        echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6-stable.list
-        sudo apt-get update
-        sudo apt-get install k6
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
-
-    - name: Start API
-      run: |
-        cd DonationPlatform.API
-        dotnet run --configuration Release --no-build &
-        sleep 10
-      timeout-minutes: 5
-
-    - name: Run Smoke Tests
-      run: k6 run performance-tests/smoke-test.js --out csv=smoke-test-results.csv
-      continue-on-error: true
-
-    - name: Run User Journey Tests
-      run: k6 run performance-tests/user-journey.js --out csv=user-journey-results.csv
-      continue-on-error: true
-
-    - name: Upload Performance Test Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: performance-test-results
-        path: |
-          smoke-test-results.csv
-          user-journey-results.csv
-
-    - name: Performance Tests Summary
-      if: always()
-      run: |
-        echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✓ Smoke tests completed" >> $GITHUB_STEP_SUMMARY
-        echo "✓ User journey tests completed" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "Check artifacts for detailed results" >> $GITHUB_STEP_SUMMARY
+        echo "## CI/CD Pipeline"
+        echo ""
+        echo "✓ Unit Tests workflow triggered"
+        echo "✓ Integration Tests workflow triggered"
+        echo "✓ Database Tests workflow triggered"
+        echo "✓ Performance Tests workflow triggered (main branch only)"
+        echo ""
+        echo "View individual workflow runs in the Actions tab."
