@@ -1,6 +1,7 @@
 using DonationPlatform.API.Services;
 using DonationPlatform.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,25 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Seed database if empty
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<DonationPlatformDbContext>();
+    if (!dbContext.Campaigns.Any())
+    {
+        try
+        {
+            var seeder = new DatabaseSeeder(dbContext);
+            await seeder.SeedAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogError(ex, "An error occurred seeding the database.");
+        }
+    }
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -43,15 +63,5 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.MapControllers();
-
-// Initialize database
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<DonationPlatformDbContext>();
-    dbContext.Database.EnsureCreated();
-    
-    var seeder = new DatabaseSeeder(dbContext);
-    await seeder.SeedAsync();
-}
 
 app.Run();
