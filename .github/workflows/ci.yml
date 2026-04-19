@@ -25,7 +25,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     
     - name: Run Unit Tests
-      run: dotnet test DonationPlatform.Tests.Unit/DonationPlatform.Tests.Unit.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=unit-test-results.trx" --collect:"XPlat Code Coverage"
+      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=unit-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Unit"
     
     - name: Upload Unit Test Results
       if: always()
@@ -73,7 +73,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     
     - name: Run Integration Tests
-      run: dotnet test DonationPlatform.Tests.Integration/DonationPlatform.Tests.Integration.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=integration-test-results.trx" --collect:"XPlat Code Coverage"
+      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=integration-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Integration"
       env:
         ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=DonationPlatform;Username=postgres;Password=postgres"
     
@@ -108,7 +108,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     
     - name: Run Database Tests
-      run: dotnet test DonationPlatform.Tests.Database/DonationPlatform.Tests.Database.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=database-test-results.trx" --collect:"XPlat Code Coverage"
+      run: dotnet test DonationPlatform.Tests/DonationPlatform.Tests.csproj --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=database-test-results.trx" --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~DonationPlatform.Tests.Database"
     
     - name: Upload Database Test Results
       if: always()
