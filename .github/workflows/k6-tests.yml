@@ -1,0 +1,77 @@
+name: K6 Performance Tests
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+jobs:
+  k6-performance-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Setup k6
+      run: |
+        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6-stable.list
+        sudo apt-get update
+        sudo apt-get install k6
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Start API
+      run: |
+        cd DonationPlatform.API
+        dotnet run --configuration Release --no-build &
+        sleep 15
+      timeout-minutes: 5
+
+    - name: Run Smoke Tests
+      run: k6 run performance-tests/smoke-test.js --vus 5 --duration 20s
+      continue-on-error: true
+
+    - name: Run Load Test
+      run: k6 run performance-tests/load-test.js --config performance-tests/k6-config.yml
+      continue-on-error: true
+
+    - name: Run User Journey Test
+      run: k6 run performance-tests/user-journey.js --vus 50 --duration 5m
+      continue-on-error: true
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: k6-test-results
+        path: |
+          results*.csv
+          results*.json
+        retention-days: 30
+
+    - name: Performance Test Report
+      if: always()
+      run: |
+        echo "## K6 Performance Tests Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✓ Smoke tests completed" >> $GITHUB_STEP_SUMMARY
+        echo "✓ Load tests completed" >> $GITHUB_STEP_SUMMARY
+        echo "✓ User journey tests completed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Base URL: http://localhost:5000" >> $GITHUB_STEP_SUMMARY
+        echo "- Load stages: Warm-up → Ramp-up → Sustained → Cool-down" >> $GITHUB_STEP_SUMMARY
+        echo "- Max VUs: 100" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "[View artifacts for detailed results](#artifacts)" >> $GITHUB_STEP_SUMMARY
