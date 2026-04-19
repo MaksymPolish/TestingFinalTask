@@ -18,6 +18,7 @@ namespace DonationPlatform.Tests.Integration
         private DonationPlatformDbContext _dbContext;
         private Organizer _verifiedOrganizer;
         private Campaign _activeCampaign;
+        private readonly string _databaseName = $"integration-test-{Guid.NewGuid()}";
 
         public CampaignsEndpointsTests()
         {
@@ -26,16 +27,21 @@ namespace DonationPlatform.Tests.Integration
                 {
                     builder.ConfigureServices(services =>
                     {
-                        var descriptor = services.SingleOrDefault(
-                            d => d.ServiceType == typeof(DbContextOptions<DonationPlatformDbContext>));
-                        
-                        if (descriptor != null)
+                        // Remove all database provider related descriptors
+                        var dbContextServices = services.Where(
+                            s => s.ServiceType == typeof(DbContextOptions<DonationPlatformDbContext>) ||
+                                 (s.ServiceType?.FullName?.Contains("DbContext") == true && 
+                                  s.ServiceType?.FullName?.Contains("DonationPlatform") == true) ||
+                                 s.ImplementationType?.FullName?.Contains("Npgsql") == true).ToList();
+
+                        foreach (var service in dbContextServices)
                         {
-                            services.Remove(descriptor);
+                            services.Remove(service);
                         }
 
+                        // Add InMemory database with unique name per test instance
                         services.AddDbContext<DonationPlatformDbContext>(options =>
-                            options.UseInMemoryDatabase("integration-test-" + Guid.NewGuid().ToString()));
+                            options.UseInMemoryDatabase(_databaseName));
                     });
                 });
         }
@@ -162,8 +168,10 @@ namespace DonationPlatform.Tests.Integration
             // Assert
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-            // Verify campaign amount was updated
+            // Verify campaign amount was updated - reload from database to get fresh data
+            _dbContext.ChangeTracker.Clear();  // Clear cache to force fresh load
             var updatedCampaign = await _dbContext.Campaigns.FindAsync(_activeCampaign.Id);
+            Assert.NotNull(updatedCampaign);
             Assert.Equal(100, updatedCampaign.CurrentAmount);
         }
 
@@ -196,8 +204,8 @@ namespace DonationPlatform.Tests.Integration
             // Arrange - Add some donations
             var donations = new[]
             {
-                new Donation { CampaignId = _activeCampaign.Id, DonorName = "D1", DonorEmail = "d1@ex.com", Amount = 100, CreatedAt = DateTime.UtcNow },
-                new Donation { CampaignId = _activeCampaign.Id, DonorName = "D2", DonorEmail = "d2@ex.com", Amount = 50, CreatedAt = DateTime.UtcNow }
+                new Donation { CampaignId = _activeCampaign.Id, DonorName = "D1", DonorEmail = "d1@ex.com", Amount = 100, Message = "Test", CreatedAt = DateTime.UtcNow },
+                new Donation { CampaignId = _activeCampaign.Id, DonorName = "D2", DonorEmail = "d2@ex.com", Amount = 50, Message = "Test", CreatedAt = DateTime.UtcNow }
             };
 
             _dbContext.Donations.AddRange(donations);
@@ -228,6 +236,7 @@ namespace DonationPlatform.Tests.Integration
                 DonorName = "Real Name",
                 DonorEmail = "real@example.com",
                 Amount = 50,
+                Message = "Test donation",
                 IsAnonymous = true,
                 CreatedAt = DateTime.UtcNow
             };

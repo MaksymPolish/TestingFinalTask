@@ -1,4 +1,5 @@
 using AutoFixture;
+using AutoFixture.Kernel;
 using Moq;
 using Xunit;
 using DonationPlatform.API.Services;
@@ -17,6 +18,9 @@ namespace DonationPlatform.Tests.Unit
         public DonationServiceTests()
         {
             _fixture = new Fixture();
+            _fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList()
+                .ForEach(b => _fixture.Behaviors.Remove(b));
+            _fixture.Behaviors.Add(new OmitOnRecursionBehavior());
             var options = new DbContextOptionsBuilder<DonationPlatformDbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
@@ -28,10 +32,21 @@ namespace DonationPlatform.Tests.Unit
         public async Task CreateDonationAsync_WithValidData_ShouldCreateDonation()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
-            campaign.Status = CampaignStatus.Active;
-            campaign.GoalAmount = 10000;
-            campaign.CurrentAmount = 0;
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .With(c => c.Status, CampaignStatus.Active)
+                .With(c => c.GoalAmount, 10000m)
+                .With(c => c.CurrentAmount, 0m)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
@@ -58,8 +73,19 @@ namespace DonationPlatform.Tests.Unit
         public async Task CreateDonationAsync_WithAmountLessThanOne_ShouldThrowException()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
-            campaign.Status = CampaignStatus.Active;
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .With(c => c.Status, CampaignStatus.Active)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
@@ -82,8 +108,19 @@ namespace DonationPlatform.Tests.Unit
         public async Task CreateDonationAsync_WithClosedCampaign_ShouldThrowException()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
-            campaign.Status = CampaignStatus.Cancelled;
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .With(c => c.Status, CampaignStatus.Cancelled)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
@@ -106,10 +143,21 @@ namespace DonationPlatform.Tests.Unit
         public async Task CreateDonationAsync_WhenGoalReached_ShouldCompleteCampaign()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
-            campaign.Status = CampaignStatus.Active;
-            campaign.GoalAmount = 100;
-            campaign.CurrentAmount = 0;
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .With(c => c.Status, CampaignStatus.Active)
+                .With(c => c.GoalAmount, 100m)
+                .With(c => c.CurrentAmount, 0m)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
@@ -137,7 +185,18 @@ namespace DonationPlatform.Tests.Unit
         public async Task GetCampaignDonationsAsync_WithAnonymous_ShouldMaskDonorInfo()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
 
@@ -147,6 +206,7 @@ namespace DonationPlatform.Tests.Unit
                 DonorName = "Real Name",
                 DonorEmail = "real@example.com",
                 Amount = 50,
+                Message = "Test message",
                 IsAnonymous = true,
                 CreatedAt = DateTime.UtcNow
             };
@@ -167,15 +227,26 @@ namespace DonationPlatform.Tests.Unit
         public async Task GetCampaignStatsAsync_ShouldCalculateCorrectly()
         {
             // Arrange
-            var campaign = _fixture.Create<Campaign>();
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
+            var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
+                .Create();
             _context.Campaigns.Add(campaign);
             await _context.SaveChangesAsync();
 
             var donations = new[]
             {
-                new Donation { CampaignId = campaign.Id, Amount = 100, CreatedAt = DateTime.UtcNow, DonorName = "D1", DonorEmail = "d1@ex.com" },
-                new Donation { CampaignId = campaign.Id, Amount = 50, CreatedAt = DateTime.UtcNow, DonorName = "D2", DonorEmail = "d2@ex.com" },
-                new Donation { CampaignId = campaign.Id, Amount = 50, CreatedAt = DateTime.UtcNow, DonorName = "D3", DonorEmail = "d3@ex.com" }
+                new Donation { CampaignId = campaign.Id, Amount = 100, Message = "Test", CreatedAt = DateTime.UtcNow, DonorName = "D1", DonorEmail = "d1@ex.com" },
+                new Donation { CampaignId = campaign.Id, Amount = 50, Message = "Test", CreatedAt = DateTime.UtcNow, DonorName = "D2", DonorEmail = "d2@ex.com" },
+                new Donation { CampaignId = campaign.Id, Amount = 50, Message = "Test", CreatedAt = DateTime.UtcNow, DonorName = "D3", DonorEmail = "d3@ex.com" }
             };
 
             _context.Donations.AddRange(donations);

@@ -1,4 +1,5 @@
 using AutoFixture;
+using AutoFixture.Kernel;
 using Moq;
 using Xunit;
 using DonationPlatform.API.Services;
@@ -17,6 +18,9 @@ namespace DonationPlatform.Tests.Unit
         public CampaignServiceTests()
         {
             _fixture = new Fixture();
+            _fixture.Behaviors.OfType<ThrowingRecursionBehavior>().ToList()
+                .ForEach(b => _fixture.Behaviors.Remove(b));
+            _fixture.Behaviors.Add(new OmitOnRecursionBehavior());
             var options = new DbContextOptionsBuilder<DonationPlatformDbContext>()
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
@@ -30,6 +34,7 @@ namespace DonationPlatform.Tests.Unit
             // Arrange
             var organizer = _fixture.Build<Organizer>()
                 .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
                 .Create();
             
             _context.Organizers.Add(organizer);
@@ -37,6 +42,8 @@ namespace DonationPlatform.Tests.Unit
 
             var campaign = _fixture.Build<Campaign>()
                 .With(c => c.OrganizerId, organizer.Id)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
                 .Create();
 
             // Act
@@ -54,6 +61,7 @@ namespace DonationPlatform.Tests.Unit
             // Arrange
             var organizer = _fixture.Build<Organizer>()
                 .With(o => o.IsVerified, false)
+                .Without(o => o.Campaigns)
                 .Create();
             
             _context.Organizers.Add(organizer);
@@ -61,6 +69,8 @@ namespace DonationPlatform.Tests.Unit
 
             var campaign = _fixture.Build<Campaign>()
                 .With(c => c.OrganizerId, organizer.Id)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
                 .Create();
 
             // Act & Assert
@@ -74,6 +84,7 @@ namespace DonationPlatform.Tests.Unit
             // Arrange
             var organizer = _fixture.Build<Organizer>()
                 .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
                 .Create();
             
             _context.Organizers.Add(organizer);
@@ -84,14 +95,20 @@ namespace DonationPlatform.Tests.Unit
                 _fixture.Build<Campaign>()
                     .With(c => c.OrganizerId, organizer.Id)
                     .With(c => c.Status, CampaignStatus.Active)
+                    .Without(c => c.Donations)
+                    .Without(c => c.Organizer)
                     .Create(),
                 _fixture.Build<Campaign>()
                     .With(c => c.OrganizerId, organizer.Id)
                     .With(c => c.Status, CampaignStatus.Completed)
+                    .Without(c => c.Donations)
+                    .Without(c => c.Organizer)
                     .Create(),
                 _fixture.Build<Campaign>()
                     .With(c => c.OrganizerId, organizer.Id)
                     .With(c => c.Status, CampaignStatus.Active)
+                    .Without(c => c.Donations)
+                    .Without(c => c.Organizer)
                     .Create()
             };
 
@@ -110,9 +127,19 @@ namespace DonationPlatform.Tests.Unit
         public async Task UpdateCampaignAsync_ShouldUpdateCampaignDetails()
         {
             // Arrange
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
             var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
                 .With(c => c.Title, "Original Title")
                 .With(c => c.GoalAmount, 1000m)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
                 .Create();
 
             _context.Campaigns.Add(campaign);
@@ -137,8 +164,18 @@ namespace DonationPlatform.Tests.Unit
         public async Task CloseCampaignAsync_ShouldChangeStatusToCancelled()
         {
             // Arrange
+            var organizer = _fixture.Build<Organizer>()
+                .With(o => o.IsVerified, true)
+                .Without(o => o.Campaigns)
+                .Create();
+            _context.Organizers.Add(organizer);
+            await _context.SaveChangesAsync();
+
             var campaign = _fixture.Build<Campaign>()
+                .With(c => c.OrganizerId, organizer.Id)
                 .With(c => c.Status, CampaignStatus.Active)
+                .Without(c => c.Donations)
+                .Without(c => c.Organizer)
                 .Create();
 
             _context.Campaigns.Add(campaign);

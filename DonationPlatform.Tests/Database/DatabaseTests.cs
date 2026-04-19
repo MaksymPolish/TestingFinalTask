@@ -64,8 +64,8 @@ namespace DonationPlatform.Tests.Database
                 .RuleFor(c => c.Description, f => f.Lorem.Paragraphs(1))
                 .RuleFor(c => c.GoalAmount, f => f.Random.Decimal(1000, 100000))
                 .RuleFor(c => c.CurrentAmount, 0)
-                .RuleFor(c => c.StartDate, f => f.Date.PastDateOnly().ToDateTime(TimeOnly.MinValue))
-                .RuleFor(c => c.EndDate, f => f.Date.FutureDateOnly().ToDateTime(TimeOnly.MinValue))
+                .RuleFor(c => c.StartDate, f => DateTime.SpecifyKind(f.Date.PastDateOnly().ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc))
+                .RuleFor(c => c.EndDate, f => DateTime.SpecifyKind(f.Date.FutureDateOnly().ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc))
                 .RuleFor(c => c.Status, CampaignStatus.Active);
 
             var donationFaker = new Faker<Donation>()
@@ -73,7 +73,7 @@ namespace DonationPlatform.Tests.Database
                 .RuleFor(d => d.DonorEmail, f => f.Internet.Email())
                 .RuleFor(d => d.Amount, f => f.Random.Decimal(1, 5000))
                 .RuleFor(d => d.Message, f => f.Lorem.Sentence())
-                .RuleFor(d => d.CreatedAt, f => f.Date.PastDateOnly().ToDateTime(TimeOnly.MinValue))
+                .RuleFor(d => d.CreatedAt, f => DateTime.SpecifyKind(f.Date.PastDateOnly().ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc))
                 .RuleFor(d => d.IsAnonymous, f => f.Random.Bool(0.2f)); // 20% anonymous
 
             // Create 100 organizers
@@ -147,6 +147,7 @@ namespace DonationPlatform.Tests.Database
                     DonorName = $"Donor {i}",
                     DonorEmail = $"donor{i}@example.com",
                     Amount = 10,
+                    Message = "Test donation",
                     CreatedAt = DateTime.UtcNow,
                     IsAnonymous = false
                 })
@@ -196,9 +197,9 @@ namespace DonationPlatform.Tests.Database
 
             var donations = new[]
             {
-                new Donation { CampaignId = campaign.Id, Amount = 100, DonorName = "D1", DonorEmail = "d1@ex.com", CreatedAt = DateTime.UtcNow },
-                new Donation { CampaignId = campaign.Id, Amount = 200, DonorName = "D2", DonorEmail = "d2@ex.com", CreatedAt = DateTime.UtcNow },
-                new Donation { CampaignId = campaign.Id, Amount = 300, DonorName = "D3", DonorEmail = "d3@ex.com", CreatedAt = DateTime.UtcNow }
+                new Donation { CampaignId = campaign.Id, Amount = 100, DonorName = "D1", DonorEmail = "d1@ex.com", Message = "Test", CreatedAt = DateTime.UtcNow },
+                new Donation { CampaignId = campaign.Id, Amount = 200, DonorName = "D2", DonorEmail = "d2@ex.com", Message = "Test", CreatedAt = DateTime.UtcNow },
+                new Donation { CampaignId = campaign.Id, Amount = 300, DonorName = "D3", DonorEmail = "d3@ex.com", Message = "Test", CreatedAt = DateTime.UtcNow }
             };
 
             _context.Donations.AddRange(donations);
