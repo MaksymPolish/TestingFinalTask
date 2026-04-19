@@ -40,7 +40,7 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     
     - name: Run Unit Tests
-      run: dotnet test --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
+      run: dotnet test --configuration Release --no-build --verbosity detailed --logger "console;verbosity=detailed" --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage"
     
     - name: Upload Test Results
       if: always()
