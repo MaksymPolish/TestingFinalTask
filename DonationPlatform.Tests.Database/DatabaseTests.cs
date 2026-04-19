@@ -13,7 +13,7 @@ namespace DonationPlatform.Tests.Database
         private PostgreSqlContainer _container;
         private DonationPlatformDbContext _context;
 
-        public async Task InitializeAsync()
+        public async ValueTask InitializeAsync()
         {
             _container = new PostgreSqlBuilder()
                 .WithDatabase("testdb")
@@ -32,7 +32,7 @@ namespace DonationPlatform.Tests.Database
             await _context.Database.EnsureCreatedAsync();
         }
 
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             await _context.DisposeAsync();
             if (_container != null)

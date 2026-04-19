@@ -40,7 +40,7 @@ namespace DonationPlatform.Tests.Integration
                 });
         }
 
-        public async Task InitializeAsync()
+        public async ValueTask InitializeAsync()
         {
             _client = _factory.CreateClient();
             
@@ -75,7 +75,7 @@ namespace DonationPlatform.Tests.Integration
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             _client?.Dispose();
             _factory?.Dispose();
