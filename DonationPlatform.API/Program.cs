@@ -49,6 +49,9 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<DonationPlatformDbContext>();
     dbContext.Database.EnsureCreated();
+    
+    var seeder = new DatabaseSeeder(dbContext);
+    await seeder.SeedAsync();
 }
 
 app.Run();
