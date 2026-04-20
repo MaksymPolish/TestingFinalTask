@@ -22,9 +22,7 @@ namespace DonationPlatform.API.Controllers
             _donationService = donationService;
         }
 
-        /// <summary>
         /// Get all active campaigns
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<List<CampaignDto>>> GetActiveCampaigns()
         {
@@ -33,9 +31,7 @@ namespace DonationPlatform.API.Controllers
             return Ok(dtos);
         }
 
-        /// <summary>
         /// Get campaign by id with progress
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<CampaignDto>> GetCampaign(int id)
         {
@@ -48,9 +44,7 @@ namespace DonationPlatform.API.Controllers
             return Ok(MapToDto(campaign));
         }
 
-        /// <summary>
         /// Create a new campaign
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<CampaignDto>> CreateCampaign(CreateCampaignRequest request)
         {
@@ -75,9 +69,7 @@ namespace DonationPlatform.API.Controllers
             }
         }
 
-        /// <summary>
         /// Update a campaign
-        /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<CampaignDto>> UpdateCampaign(int id, UpdateCampaignRequest request)
         {
@@ -100,9 +92,7 @@ namespace DonationPlatform.API.Controllers
             }
         }
 
-        /// <summary>
         /// Make a donation to a campaign
-        /// </summary>
         [HttpPost("{id}/donate")]
         public async Task<ActionResult<DonationDto>> Donate(int id, CreateDonationRequest request)
         {
@@ -130,9 +120,7 @@ namespace DonationPlatform.API.Controllers
             }
         }
 
-        /// <summary>
         /// Get donations for a campaign (anonymous donations hide donor names)
-        /// </summary>
         [HttpGet("{id}/donations")]
         public async Task<ActionResult<List<DonationDto>>> GetDonations(int id)
         {
@@ -141,9 +129,7 @@ namespace DonationPlatform.API.Controllers
             return Ok(dtos);
         }
 
-        /// <summary>
         /// Get campaign statistics
-        /// </summary>
         [HttpGet("{id}/stats")]
         public async Task<ActionResult<CampaignStatsDto>> GetStats(int id)
         {
@@ -162,9 +148,7 @@ namespace DonationPlatform.API.Controllers
             });
         }
 
-        /// <summary>
         /// Close a campaign
-        /// </summary>
         [HttpPatch("{id}/close")]
         public async Task<ActionResult<CampaignDto>> CloseCampaign(int id)
         {
